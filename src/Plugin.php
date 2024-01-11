@@ -9,6 +9,8 @@ use craft\helpers\App;
 use lameco\blitz\models\Settings;
 use lameco\blitz\services\BlitzService;
 use putyourlightson\blitz\Blitz;
+use putyourlightson\blitz\drivers\generators\HttpGenerator;
+use putyourlightson\blitz\drivers\generators\LocalGenerator;
 use putyourlightson\blitz\models\SettingsModel;
 
 /**
@@ -45,6 +47,7 @@ class Plugin extends BasePlugin
     {
         Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
         Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
+        Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
         Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
         Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
         Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
