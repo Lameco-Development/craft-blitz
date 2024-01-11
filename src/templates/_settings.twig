@@ -1,0 +1,35 @@
+{% import "_includes/forms" as forms %}
+
+{% set options = {} %}
+{% for entryType in craft.app.sections.getAllEntryTypes() %}
+    {% set section = entryType.section %}
+
+    {% set name = section.name %}
+
+    {% if section.name != entryType.name %}
+        {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
+    {% endif %}
+
+    {% set options = options|merge([{ label: name, value: entryType.id }]) %}
+{% endfor %}
+
+{{ forms.editableTableField({
+    label: 'Section query string params',
+    name: 'sectionQueryStringParams',
+    cols: {
+        section: {
+            type: 'select',
+            heading: 'Section',
+            options: options
+        },
+        queryStringParams: {
+            type: 'singleline',
+            heading: 'Query string params',
+            info: 'Each query string param should be comma separated. E.g. query,sort',
+            code: true,
+        },
+    },
+    rows: settings.sectionQueryStringParams,
+    allowAdd: true,
+    allowDelete: true
+}) }}
