@@ -36,14 +36,23 @@ class Plugin extends BasePlugin
         parent::init();
 
         Craft::$app->onInit(function() {
-            Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
-            Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
-            Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-            Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
-            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
-
-            Plugin::getInstance()->blitzService->setupEntryQueryStringParams();
+            $this->_registerSettings();
+            $this->_registerEvents();
         });
+    }
+
+    private function _registerSettings(): void
+    {
+        Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
+        Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
+        Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+        Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
+        Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+    }
+
+    private function _registerEvents(): void
+    {
+        $this->blitzService->setupEntryQueryStringParams();
     }
 
     protected function createSettingsModel(): ?Model
