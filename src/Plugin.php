@@ -3,9 +3,11 @@
 namespace lameco\blitz;
 
 use Craft;
+use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\helpers\App;
+use craft\services\Plugins;
 use lameco\blitz\models\Settings;
 use lameco\blitz\services\BlitzService;
 use putyourlightson\blitz\Blitz;
@@ -37,25 +39,21 @@ class Plugin extends BasePlugin
     {
         parent::init();
 
-        Craft::$app->onInit(function() {
-            $this->_registerSettings();
-            $this->_registerEvents();
-        });
-    }
-
-    private function _registerSettings(): void
-    {
-        Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
-        Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
-        Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-        Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-        Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
-        Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+        $this->_registerEvents();
     }
 
     private function _registerEvents(): void
     {
-        $this->blitzService->setupEntryQueryStringParams();
+        Event::on(Plugins::class, Plugins::EVENT_AFTER_LOAD_PLUGINS, function() {
+            Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
+            Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
+            Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
+            Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+            Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
+            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+
+            $this->blitzService->setupEntryQueryStringParams();
+        });
     }
 
     protected function createSettingsModel(): ?Model
