@@ -51,6 +51,10 @@ class Plugin extends BasePlugin
             Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
             Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
             Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+            Blitz::$plugin->settings->cacheGeneratorSettings = ['concurrency' => 1];
+            Blitz::$plugin->settings->includedQueryStringParams = [];
+            Blitz::$plugin->settings->excludedQueryStringParams = [];
+            Blitz::$plugin->settings->cacheStorageSettings = ['compressCachedValues' => true];
 
             $this->blitzService->setupEntryQueryStringParams();
         });
