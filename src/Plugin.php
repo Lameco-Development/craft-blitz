@@ -39,25 +39,30 @@ class Plugin extends BasePlugin
     {
         parent::init();
 
+        $this->_overrideSettings();
         $this->_registerEvents();
     }
 
     private function _registerEvents(): void
     {
         Event::on(Plugins::class, Plugins::EVENT_AFTER_LOAD_PLUGINS, function() {
-            Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
-            Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
-            Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-            Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-            Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
-            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
-            Blitz::$plugin->settings->cacheGeneratorSettings = ['concurrency' => 1];
-            Blitz::$plugin->settings->includedQueryStringParams = [];
-            Blitz::$plugin->settings->excludedQueryStringParams = [];
-            Blitz::$plugin->settings->cacheStorageSettings = ['compressCachedValues' => true];
-
+//            dump('After load plugins');
             $this->blitzService->setupEntryQueryStringParams();
         });
+    }
+
+    private function _overrideSettings(): void
+    {
+        Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
+        Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
+        Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
+        Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+        Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
+        Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+        Blitz::$plugin->settings->cacheGeneratorSettings = ['concurrency' => 1];
+        Blitz::$plugin->settings->includedQueryStringParams = [];
+        Blitz::$plugin->settings->excludedQueryStringParams = [];
+        Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = '1';
     }
 
     protected function createSettingsModel(): ?Model
