@@ -43,6 +43,6 @@ class BlitzService
             }
         }
 
-        return explode(',', $entryQueryStringParams);
+        return $entryQueryStringParams !== null ? explode(',', $entryQueryStringParams) : [];
     }
 }
