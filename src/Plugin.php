@@ -46,7 +46,6 @@ class Plugin extends BasePlugin
     private function _registerEvents(): void
     {
         Event::on(Plugins::class, Plugins::EVENT_AFTER_LOAD_PLUGINS, function() {
-//            dump('After load plugins');
             $this->blitzService->setupEntryQueryStringParams();
         });
     }
