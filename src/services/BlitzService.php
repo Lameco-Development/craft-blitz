@@ -26,7 +26,7 @@ class BlitzService
         }
 
         Blitz::$plugin->settings->includedQueryStringParams = array_map(static function(string $queryStringParam) {
-            return ['siteId' => '', 'queryStringParam' => $queryStringParam];
+            return ['siteId' => '', 'queryStringParam' => '^' . $queryStringParam . '$'];
         }, $this->getEntryQueryStringParamsArray($entry));
     }
 
