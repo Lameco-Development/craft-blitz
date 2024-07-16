@@ -1,11 +1,11 @@
 {
     "name": "lameco/craft-blitz",
     "type": "craft-plugin",
-    "version": "0.1.4",
+    "version": "0.2.0",
     "require": {
         "php": "^8.2",
-        "craftcms/cms": "^4.5",
-        "putyourlightson/craft-blitz": "^4.10"
+        "craftcms/cms": "^5.0",
+        "putyourlightson/craft-blitz": "^5.4.0"
     },
     "require-dev": {
         "craftcms/ecs": "dev-main",
