@@ -1,16 +1,16 @@
 {% import "_includes/forms" as forms %}
 
 {% set options = {} %}
-{% for entryType in craft.app.sections.getAllEntryTypes() %}
-    {% set section = entryType.section %}
+{% for section in craft.app.entries.allSections() %}
+    {% for entryType in craft.app.entries.getEntryTypesBySectionId(section.id) %}
+        {% set name = section.name %}
 
-    {% set name = section.name %}
+        {% if section.name != entryType.name %}
+            {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
+        {% endif %}
 
-    {% if section.name != entryType.name %}
-        {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
-    {% endif %}
-
-    {% set options = options|merge([{ label: name, value: entryType.id }]) %}
+        {% set options = options|merge([{ label: name, value: entryType.id }]) %}
+    {% endfor %}
 {% endfor %}
 
 {{ forms.editableTableField({
