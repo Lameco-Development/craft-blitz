@@ -9,7 +9,7 @@
             {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
         {% endif %}
 
-        {% set options = options|merge([{ label: name, value: entryType.id }]) %}
+        {% set options = options|merge([{ label: name, value: section.id }]) %}
     {% endfor %}
 {% endfor %}
 

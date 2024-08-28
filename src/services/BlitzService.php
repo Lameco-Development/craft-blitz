@@ -33,11 +33,10 @@ class BlitzService
     private function getEntryQueryStringParamsArray(Entry $entry): array
     {
         $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
-
         $entryQueryStringParams = null;
 
         foreach ($sectionQueryStringParamsMap as $sectionQueryStringParams) {
-            if ($entry->type->id === (int)$sectionQueryStringParams['section']) {
+            if ($entry->section->id === (int)$sectionQueryStringParams['section']) {
                 $entryQueryStringParams = $sectionQueryStringParams['queryStringParams'];
                 break;
             }
