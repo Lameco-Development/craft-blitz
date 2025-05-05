@@ -6,34 +6,26 @@ use Craft;
 use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
+use craft\elements\Entry;
+use craft\events\CancelableEvent;
 use craft\helpers\App;
 use craft\services\Plugins;
 use lameco\blitz\models\Settings;
-use lameco\blitz\services\BlitzService;
 use putyourlightson\blitz\Blitz;
 use putyourlightson\blitz\drivers\generators\HttpGenerator;
 use putyourlightson\blitz\drivers\generators\LocalGenerator;
 use putyourlightson\blitz\models\SettingsModel;
+use putyourlightson\blitz\services\CacheRequestService;
 
 /**
  * Craft Blitz plugin
  *
  * @method static Plugin getInstance()
- * @property-read BlitzService $blitzService
  */
 class Plugin extends BasePlugin
 {
     public string $schemaVersion = '1.0.0';
     public bool $hasCpSettings = true;
-
-    public static function config(): array
-    {
-        return [
-            'components' => [
-                'blitzService' => BlitzService::class,
-            ],
-        ];
-    }
 
     public function init(): void
     {
@@ -50,13 +42,40 @@ class Plugin extends BasePlugin
             Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
             Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
             Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_UNIQUE_PAGES;
+            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
             Blitz::$plugin->settings->includedQueryStringParams = [];
             Blitz::$plugin->settings->excludedQueryStringParams = [];
             Blitz::$plugin->settings->cacheGeneratorSettings['concurrency'] = 1;
             Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = true;
+        });
 
-            $this->blitzService->setupEntryQueryStringParams();
+        Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function (CancelableEvent $event) {
+            $request = Craft::$app->getRequest();
+
+            if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
+                return;
+            }
+
+            $entry = Craft::$app->getUrlManager()->getMatchedElement();
+
+            if (!$entry instanceof Entry) {
+                return;
+            }
+
+            $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
+
+            foreach ($sectionQueryStringParamsMap as $sectionSetting) {
+                if ($entry->type->id === (int)$sectionSetting['section']) {
+                    $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
+
+                    foreach ($excludedParams as $param) {
+                        if ($request->getQueryParam($param)) {
+                            $event->isValid = false; // Prevent caching for query param
+                            return;
+                        }
+                    }
+                }
+            }
         });
     }
 
