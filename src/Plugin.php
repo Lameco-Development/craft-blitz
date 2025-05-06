@@ -64,14 +64,31 @@ class Plugin extends BasePlugin
 
             $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
 
-            foreach ($sectionQueryStringParamsMap as $sectionSetting) {
-                if ($entry->type->id === (int)$sectionSetting['section']) {
-                    $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
+            $isCraft5 = $this->isCraft5();
 
-                    foreach ($excludedParams as $param) {
-                        if ($request->getQueryParam($param)) {
-                            $event->isValid = false; // Prevent caching for query param
-                            return;
+            foreach ($sectionQueryStringParamsMap as $sectionSetting) {
+                $matchSectionId = (int)($sectionSetting['section'] ?? 0);
+
+                if ($isCraft5) {
+                    // Craft 5
+                    if ($entry->section->id === $matchSectionId) {
+                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
+                        foreach ($excludedParams as $param) {
+                            if ($request->getQueryParam($param)) {
+                                $event->isValid = false;
+                                return;
+                            }
+                        }
+                    }
+                } else {
+                    // Craft 4
+                    if ($entry->type->id === $matchSectionId) {
+                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
+                        foreach ($excludedParams as $param) {
+                            if ($request->getQueryParam($param)) {
+                                $event->isValid = false;
+                                return;
+                            }
                         }
                     }
                 }
@@ -89,6 +106,12 @@ class Plugin extends BasePlugin
         return Craft::$app->view->renderTemplate('_craft-blitz/_settings.twig', [
             'plugin' => $this,
             'settings' => $this->getSettings(),
+            'isCraft5' => $this->isCraft5(),
         ]);
+    }
+
+    private function isCraft5(): bool
+    {
+        return \version_compare(Craft::$app->getVersion(), '5.0.0', '>=');
     }
 }

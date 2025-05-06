@@ -1,20 +1,36 @@
 {% import "_includes/forms" as forms %}
 
 {% set options = {} %}
-{% for section in craft.app.entries.allSections() %}
-    {% for entryType in craft.app.entries.getEntryTypesBySectionId(section.id) %}
+
+{% if isCraft5 %}
+    {# Craft 5 #}
+    {% for section in craft.app.entries.allSections() %}
+        {% for entryType in craft.app.entries.getEntryTypesBySectionId(section.id) %}
+            {% set name = section.name %}
+
+            {% if section.name != entryType.name %}
+                {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
+            {% endif %}
+
+            {% set options = options|merge([{ label: name, value: section.id }]) %}
+        {% endfor %}
+    {% endfor %}
+{% else %}
+    {# Craft 4 #}
+    {% for entryType in craft.app.sections.getAllEntryTypes() %}
+        {% set section = entryType.section %}
         {% set name = section.name %}
 
         {% if section.name != entryType.name %}
             {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
         {% endif %}
 
-        {% set options = options|merge([{ label: name, value: section.id }]) %}
+        {% set options = options|merge([{ label: name, value: entryType.id }]) %}
     {% endfor %}
-{% endfor %}
+{% endif %}
 
 {{ forms.editableTableField({
-    label: 'Query string params that should be cached as unique pages',
+    label: 'Query string params that should bypass caching and show a non-cached page',
     name: 'sectionQueryStringParams',
     cols: {
         section: {
@@ -25,7 +41,7 @@
         queryStringParams: {
             type: 'singleline',
             heading: 'Query string params',
-            info: 'Each query string param should be comma separated. E.g. query,sort',
+            info: 'Comma-separated list of query string parameters to bypass caching, e.g. query,sort',
             code: true,
         },
     },
