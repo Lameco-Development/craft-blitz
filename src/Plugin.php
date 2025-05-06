@@ -62,9 +62,19 @@ class Plugin extends BasePlugin
                 return;
             }
 
-            $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
-
             $isCraft5 = $this->isCraft5();
+
+            $globalQueryStringParamsMap = Plugin::getInstance()->getSettings()->globalQueryStringParams ?? '';
+            $excludedGlobalParams = array_filter(array_map('trim', explode(',', $globalQueryStringParamsMap)));
+
+            foreach ($excludedGlobalParams as $param) {
+                if ($request->getQueryParam($param)) {
+                    $event->isValid = false;
+                    return;
+                }
+            }
+
+            $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
 
             foreach ($sectionQueryStringParamsMap as $sectionSetting) {
                 $matchSectionId = (int)($sectionSetting['section'] ?? 0);

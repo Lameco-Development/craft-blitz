@@ -29,6 +29,14 @@
     {% endfor %}
 {% endif %}
 
+{{ forms.textField({
+    label: 'Global query string params',
+    instructions: 'Comma-separated list of query string parameters that should bypass caching on all pages.',
+    name: 'globalQueryStringParams',
+    value: settings.globalQueryStringParams,
+    code: true
+}) }}
+
 {{ forms.editableTableField({
     label: 'Query string params that should bypass caching and show a non-cached page',
     name: 'sectionQueryStringParams',
