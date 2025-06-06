@@ -53,12 +53,14 @@ class Plugin extends BasePlugin
             $request = Craft::$app->getRequest();
 
             if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
+                $event->isValid = false;
                 return;
             }
 
             $entry = Craft::$app->getUrlManager()->getMatchedElement();
 
             if (!$entry instanceof Entry) {
+                $event->isValid = false;
                 return;
             }
 
