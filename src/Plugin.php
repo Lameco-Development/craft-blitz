@@ -79,11 +79,16 @@ class Plugin extends BasePlugin
             $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
 
             foreach ($sectionQueryStringParamsMap as $sectionSetting) {
-                $matchSectionId = (int)($sectionSetting['section'] ?? 0);
+                $matchHandle = $sectionSetting['section'] ?? '';
+                
+                // Expected format: "sectionHandle:entryTypeHandle"
+                $handleParts = explode(':', $matchHandle);
+                $sectionHandle = $handleParts[0] ?? '';
+                $entryTypeHandle = $handleParts[1] ?? '';
 
                 if ($isCraft5) {
-                    // Craft 5
-                    if ($entry->section->id === $matchSectionId) {
+                    // Craft 5: Match by section:entryType handle
+                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
                             if ($request->getQueryParam($param)) {
@@ -93,8 +98,8 @@ class Plugin extends BasePlugin
                         }
                     }
                 } else {
-                    // Craft 4
-                    if ($entry->type->id === $matchSectionId) {
+                    // Craft 4: Match by section:entryType handle
+                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
                             if ($request->getQueryParam($param)) {
