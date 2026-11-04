@@ -70,7 +70,7 @@ class Plugin extends BasePlugin
             $excludedGlobalParams = array_filter(array_map('trim', explode(',', $globalQueryStringParamsMap)));
 
             foreach ($excludedGlobalParams as $param) {
-                if ($request->getQueryParam($param)) {
+                if ($param !== '' && $request->getQueryParam($param) !== null) {
                     $event->isValid = false;
                     return;
                 }
@@ -91,7 +91,7 @@ class Plugin extends BasePlugin
                     if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
-                            if ($request->getQueryParam($param)) {
+                            if ($param !== '' && $request->getQueryParam($param) !== null) {
                                 $event->isValid = false;
                                 return;
                             }
@@ -102,7 +102,7 @@ class Plugin extends BasePlugin
                     if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
-                            if ($request->getQueryParam($param)) {
+                            if ($param !== '' && $request->getQueryParam($param) !== null) {
                                 $event->isValid = false;
                                 return;
                             }
