@@ -16,7 +16,7 @@
 
 {{ forms.textField({
     label: 'Global query string params',
-    instructions: 'Comma-separated list of query string parameters that should bypass caching on all pages.',
+    instructions: 'Comma-separated list of query string parameters that bypass the cache on every page when present, whatever their value. `filters[]` matches `filters`.',
     name: 'globalQueryStringParams',
     value: settings.globalQueryStringParams,
     code: true

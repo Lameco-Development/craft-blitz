@@ -10,6 +10,7 @@ use craft\elements\Entry;
 use craft\events\CancelableEvent;
 use craft\helpers\App;
 use craft\services\Plugins;
+use lameco\blitz\helpers\QueryStringExclusion;
 use lameco\blitz\models\Settings;
 use putyourlightson\blitz\Blitz;
 use putyourlightson\blitz\drivers\generators\HttpGenerator;
@@ -21,6 +22,7 @@ use putyourlightson\blitz\services\CacheRequestService;
  * Craft Blitz plugin
  *
  * @method static Plugin getInstance()
+ * @method Settings getSettings()
  */
 class Plugin extends BasePlugin
 {
@@ -49,59 +51,46 @@ class Plugin extends BasePlugin
             Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = true;
         });
 
-        Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function (CancelableEvent $event) {
-            $request = Craft::$app->getRequest();
-
-            if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
-                $event->isValid = false;
-                return;
-            }
-
-            // A craft.blitz.includeCached() fragment is fetched from its own URL, which matches no
-            // entry; the entry check below would leave every such fragment uncached and rendered
-            // by PHP on each page view, even when the page around it comes from the cache.
-            if (Blitz::$plugin->cacheRequest->getIsCachedInclude()) {
-                return;
-            }
-
-            $entry = Craft::$app->getUrlManager()->getMatchedElement();
-
-            if (!$entry instanceof Entry) {
-                $event->isValid = false;
-                return;
-            }
-
-            $globalQueryStringParamsMap = Plugin::getInstance()->getSettings()->globalQueryStringParams ?? '';
-            $excludedGlobalParams = array_filter(array_map('trim', explode(',', $globalQueryStringParamsMap)));
-
-            foreach ($excludedGlobalParams as $param) {
-                if ($param !== '' && $request->getQueryParam($param) !== null) {
-                    $event->isValid = false;
-                    return;
-                }
-            }
-
-            $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
-
-            foreach ($sectionQueryStringParamsMap as $sectionSetting) {
-                $matchHandle = $sectionSetting['section'] ?? '';
-                
-                // Expected format: "sectionHandle:entryTypeHandle"
-                $handleParts = explode(':', $matchHandle);
-                $sectionHandle = $handleParts[0] ?? '';
-                $entryTypeHandle = $handleParts[1] ?? '';
-
-                if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
-                    $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
-                    foreach ($excludedParams as $param) {
-                        if ($param !== '' && $request->getQueryParam($param) !== null) {
-                            $event->isValid = false;
-                            return;
-                        }
-                    }
-                }
-            }
+        Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function(CancelableEvent $event) {
+            $this->_vetoUncacheableRequest($event);
         });
+    }
+
+    private function _vetoUncacheableRequest(CancelableEvent $event): void
+    {
+        $request = Craft::$app->getRequest();
+
+        if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
+            $event->isValid = false;
+            return;
+        }
+
+        // A craft.blitz.includeCached() fragment is fetched from its own URL, which matches no
+        // entry; the entry check below would leave every such fragment uncached and rendered
+        // by PHP on each page view, even when the page around it comes from the cache.
+        if (Blitz::$plugin->cacheRequest->getIsCachedInclude()) {
+            return;
+        }
+
+        $entry = Craft::$app->getUrlManager()->getMatchedElement();
+
+        if (!$entry instanceof Entry) {
+            $event->isValid = false;
+            return;
+        }
+
+        $settings = $this->getSettings();
+
+        // A nested entry with its own URI has no section.
+        if (QueryStringExclusion::isExcluded(
+            $request->getQueryParams(),
+            $settings->globalQueryStringParams,
+            $settings->sectionQueryStringParams,
+            $entry->getSection()?->handle,
+            $entry->getType()->handle,
+        )) {
+            $event->isValid = false;
+        }
     }
 
     protected function createSettingsModel(): ?Model
