@@ -10,6 +10,9 @@ Default settings and configuration for Craft Blitz, providing sensible caching d
 ## Installation
 
 ```bash
-composer require lameco/craft-blitz
+composer require lameco/craft-blitz:^1.1
 ```
+
+The constraint matters: the tags `4.0.0`, `5.0.0` and `5.0.1` belong to an older, unrelated
+implementation from 2024, and without a constraint Composer picks `5.0.1`.
 
