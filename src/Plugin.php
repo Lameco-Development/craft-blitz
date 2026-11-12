@@ -39,21 +39,56 @@ class Plugin extends BasePlugin
     private function _registerEvents(): void
     {
         Event::on(Plugins::class, Plugins::EVENT_AFTER_LOAD_PLUGINS, function() {
-            Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
-            Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
-            Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
-            Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-            Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
-            Blitz::$plugin->settings->includedQueryStringParams = [];
-            Blitz::$plugin->settings->excludedQueryStringParams = [];
-            Blitz::$plugin->settings->cacheGeneratorSettings['concurrency'] = 1;
-            Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = true;
-        });
+            // Blitz::$plugin is an uninitialised typed property while Blitz is missing or disabled.
+            if (!isset(Blitz::$plugin)) {
+                return;
+            }
 
-        Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function(CancelableEvent $event) {
-            $this->_vetoUncacheableRequest($event);
+            $settings = Blitz::$plugin->settings;
+            $settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
+            $settings->debug = App::env('BLITZ_DEBUG') ?? false;
+            $settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
+            $settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
+            $settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+            $settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
+            $settings->includedQueryStringParams = [];
+            $settings->excludedQueryStringParams = [];
+            $settings->cacheGeneratorSettings['concurrency'] = 1;
+            $settings->cacheStorageSettings['compressCachedValues'] = true;
+
+            $this->_reregisterBlitzDrivers($settings);
+
+            Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function(CancelableEvent $event) {
+                $this->_vetoUncacheableRequest($event);
+            });
         });
+    }
+
+    /**
+     * Blitz builds its storage and generator components from its settings during its own init(),
+     * before EVENT_AFTER_LOAD_PLUGINS, so the driver settings above only apply once the components
+     * are defined again. The settings come from the site's project config and may belong to another
+     * driver (HttpGenerator's basic-auth fields under LocalGenerator); only the target driver's own
+     * properties are passed, since Yii refuses unknown ones.
+     */
+    private function _reregisterBlitzDrivers(SettingsModel $settings): void
+    {
+        $drivers = [
+            'cacheStorage' => [$settings->cacheStorageType, $settings->cacheStorageSettings],
+            'cacheGenerator' => [$settings->cacheGeneratorType, $settings->cacheGeneratorSettings],
+        ];
+
+        foreach ($drivers as $id => [$class, $driverSettings]) {
+            $config = ['class' => $class];
+
+            foreach ($driverSettings as $name => $value) {
+                if (is_string($name) && property_exists($class, $name)) {
+                    $config[$name] = $value;
+                }
+            }
+
+            Blitz::$plugin->set($id, $config);
+        }
     }
 
     private function _vetoUncacheableRequest(CancelableEvent $event): void
