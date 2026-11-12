@@ -5,8 +5,8 @@ Default settings and configuration for Craft Blitz, providing sensible caching d
 ## Requirements
 
 - PHP 8.2 or higher
-- Craft CMS 4.4 or higher
-- Blitz 4.3 or higher
+- Craft CMS 5
+- Blitz 5
 
 ## Installation
 

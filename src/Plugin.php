@@ -71,8 +71,6 @@ class Plugin extends BasePlugin
                 return;
             }
 
-            $isCraft5 = $this->isCraft5();
-
             $globalQueryStringParamsMap = Plugin::getInstance()->getSettings()->globalQueryStringParams ?? '';
             $excludedGlobalParams = array_filter(array_map('trim', explode(',', $globalQueryStringParamsMap)));
 
@@ -93,26 +91,12 @@ class Plugin extends BasePlugin
                 $sectionHandle = $handleParts[0] ?? '';
                 $entryTypeHandle = $handleParts[1] ?? '';
 
-                if ($isCraft5) {
-                    // Craft 5: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
-                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
-                        foreach ($excludedParams as $param) {
-                            if ($param !== '' && $request->getQueryParam($param) !== null) {
-                                $event->isValid = false;
-                                return;
-                            }
-                        }
-                    }
-                } else {
-                    // Craft 4: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
-                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
-                        foreach ($excludedParams as $param) {
-                            if ($param !== '' && $request->getQueryParam($param) !== null) {
-                                $event->isValid = false;
-                                return;
-                            }
+                if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
+                    $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
+                    foreach ($excludedParams as $param) {
+                        if ($param !== '' && $request->getQueryParam($param) !== null) {
+                            $event->isValid = false;
+                            return;
                         }
                     }
                 }
@@ -130,12 +114,6 @@ class Plugin extends BasePlugin
         return Craft::$app->view->renderTemplate('_craft-blitz/_settings.twig', [
             'plugin' => $this,
             'settings' => $this->getSettings(),
-            'isCraft5' => $this->isCraft5(),
         ]);
-    }
-
-    private function isCraft5(): bool
-    {
-        return \version_compare(Craft::$app->getVersion(), '5.0.0', '>=');
     }
 }
