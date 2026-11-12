@@ -11,12 +11,15 @@ use craft\events\CancelableEvent;
 use craft\helpers\App;
 use craft\services\Plugins;
 use lameco\blitz\helpers\QueryStringExclusion;
+use lameco\blitz\helpers\TranslationSync;
 use lameco\blitz\models\Settings;
 use putyourlightson\blitz\Blitz;
 use putyourlightson\blitz\drivers\generators\HttpGenerator;
 use putyourlightson\blitz\drivers\generators\LocalGenerator;
 use putyourlightson\blitz\models\SettingsModel;
 use putyourlightson\blitz\services\CacheRequestService;
+use yii\queue\ExecEvent;
+use yii\queue\Queue;
 
 /**
  * Craft Blitz plugin
@@ -60,6 +63,14 @@ class Plugin extends BasePlugin
 
             Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function(CancelableEvent $event) {
                 $this->_vetoUncacheableRequest($event);
+            });
+
+            // Translations change no element, so Blitz would keep serving the old text. In expire
+            // mode this marks the cache expired and pages rebuild as visitors arrive.
+            Event::on(Queue::class, Queue::EVENT_AFTER_EXEC, function(ExecEvent $event) {
+                if (is_object($event->job) && TranslationSync::requiresCacheRefresh($event->job)) {
+                    Blitz::$plugin->refreshCache->refreshAll();
+                }
             });
         });
     }
