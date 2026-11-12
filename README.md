@@ -34,6 +34,10 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 
 Only pages that resolve to an entry are cached, plus the fragments of `craft.blitz.includeCached()`.
 
+## Translations
+
+When [Enupal Translate](https://plugins.craftcms.com/enupal-translate) saves or imports translations, the plugin expires the whole Blitz cache, since translations change no element that Blitz could track. It does so once Enupal's "Syncing translations with DB" queue job has run, so a queue runner is needed. As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text.
+
 ## Query string exclusions
 
 Because every URL with a query string is cached as the same page, a parameter that changes the output has to be listed, or its render ends up in the cache under the plain URL for every visitor. A listed parameter makes the request bypass the cache whenever it is present, whatever its value (`?q=0`, `?q=` and `?q` included). Blitz neither serves such a request from the cache nor stores it.
