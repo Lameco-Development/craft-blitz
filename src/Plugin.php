@@ -57,6 +57,13 @@ class Plugin extends BasePlugin
                 return;
             }
 
+            // A craft.blitz.includeCached() fragment is fetched from its own URL, which matches no
+            // entry; the entry check below would leave every such fragment uncached and rendered
+            // by PHP on each page view, even when the page around it comes from the cache.
+            if (Blitz::$plugin->cacheRequest->getIsCachedInclude()) {
+                return;
+            }
+
             $entry = Craft::$app->getUrlManager()->getMatchedElement();
 
             if (!$entry instanceof Entry) {
