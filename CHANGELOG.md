@@ -9,7 +9,6 @@ The tags `4.0.0`, `5.0.0` and `5.0.1` (2024) belong to an earlier implementation
 
 ### Bug Fixes
 
-* expire the Blitz cache after Enupal Translate syncs translations ([e248656](https://github.com/Lameco-Development/craft-blitz/commit/e2486560c8ef0f8933f10981e1c799192b3250ce))
 * expire the Blitz cache after Enupal Translate syncs translations ([84c8f2b](https://github.com/Lameco-Development/craft-blitz/commit/84c8f2bc14047a6dd918935cd0685b592c8dcaf0))
 
 ## [6.0.0](https://github.com/Lameco-Development/craft-blitz/compare/1.1.2...6.0.0) (2026-11-12)
