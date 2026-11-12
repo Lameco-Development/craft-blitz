@@ -32,6 +32,8 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 | Query string caching | cache URLs with query strings as the same page |
 | Included / excluded query string params | none |
 
+`BLITZ_GENERATOR=LOCAL` is for local development only, where Blitz's HTTP generator can't reach Valet's `.test` domains. Servers use `HTTP`: the local generator can't rebuild `craft.blitz.includeCached()` fragments, so an expired header or footer stays up.
+
 Only pages that resolve to an entry are cached, plus the fragments of `craft.blitz.includeCached()`.
 
 ## Translations
