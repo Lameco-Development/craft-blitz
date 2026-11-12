@@ -36,7 +36,7 @@ Only pages that resolve to an entry are cached, plus the fragments of `craft.bli
 
 ## Translations
 
-When [Enupal Translate](https://plugins.craftcms.com/enupal-translate) saves or imports translations, the plugin expires the whole Blitz cache, since translations change no element that Blitz could track. It does so once Enupal's "Syncing translations with DB" queue job has run, so a queue runner is needed. As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text.
+When [Enupal Translate](https://plugins.craftcms.com/enupal-translate) saves or imports translations, the plugin expires the whole Blitz cache. Translations live in PHP files, not in elements, so Blitz can't tell which pages use them; and the translated header and footer are on every page anyway. This only happens while Blitz caching is enabled (`BLITZ_ENABLED`). It does so once Enupal's "Syncing translations with DB" queue job has run, so a queue runner is needed. As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text.
 
 ## Query string exclusions
 
