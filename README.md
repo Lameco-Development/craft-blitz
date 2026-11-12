@@ -36,7 +36,15 @@ Only pages that resolve to an entry are cached, plus the fragments of `craft.bli
 
 ## Translations
 
-When [Enupal Translate](https://plugins.craftcms.com/enupal-translate) saves or imports translations, the plugin expires the whole Blitz cache. Translations live in PHP files, not in elements, so Blitz can't tell which pages use them; and the translated header and footer are on every page anyway. This only happens while Blitz caching is enabled (`BLITZ_ENABLED`). It does so once Enupal's "Syncing translations with DB" queue job has run, so a queue runner is needed. As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text.
+With [Enupal Translate](https://plugins.craftcms.com/enupal-translate) installed, a changed site translation expires only the cached pages and `craft.blitz.includeCached()` fragments that show it, as Blitz recommends for content it can't track itself ([craft-blitz#649](https://github.com/putyourlightson/craft-blitz/issues/649)):
+
+- While Blitz caches a page or fragment, the plugin tags it with every site translation (`|t`, `Craft::t('site', …)`) it renders.
+- Enupal writes each save, import or provider translation to the translation file and queues its "Syncing translations with DB" job. Just before that job runs, the plugin compares Enupal's database copy with the files, and afterwards expires the pages tagged with a changed message. A change in `translations/nl/` also covers the regions that fall back to it, such as `nl-NL`.
+- If Enupal's database copy is behind the files, for example when translations were changed in git, the next sync treats those messages as changed too.
+
+This needs a queue runner, and only happens while Blitz caching is enabled (`BLITZ_ENABLED`). As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text. A site that configures its own message source for the `site` category isn't tagged; there, a sync expires the whole cache. Edits to plugin translations through Enupal are not tracked.
+
+Pages cached before 6.1.0 carry no translation tags, so clear the Blitz cache once after updating.
 
 ## Query string exclusions
 
