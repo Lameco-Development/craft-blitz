@@ -6,16 +6,16 @@ The tags `4.0.0`, `5.0.0` and `5.0.1` (2024) belong to an earlier implementation
 
 ## [6.1.0](https://github.com/Lameco-Development/craft-blitz/compare/6.0.1...6.1.0) (2026-11-12)
 
+Clear the Blitz cache once after updating: pages cached before 6.1.0 carry no translation tags.
+
 
 ### Features
 
-* expire only the pages that show a changed translation ([f945cd0](https://github.com/Lameco-Development/craft-blitz/commit/f945cd0e50eb47643e2af446e461cf518d88099a))
 * expire only the pages that show a changed translation ([d3276b2](https://github.com/Lameco-Development/craft-blitz/commit/d3276b2288d1fb7fbf1e56b9ee71ebb14bc6c643))
 
 
 ### Bug Fixes
 
-* refresh the changed translations also when Enupal's sync job fails ([4d8bfb3](https://github.com/Lameco-Development/craft-blitz/commit/4d8bfb361ad1237f36d6985605820f5a5c6e970e))
 * refresh the changed translations also when Enupal's sync job fails ([9adf474](https://github.com/Lameco-Development/craft-blitz/commit/9adf4741504f2cb0d4c99f0a9c6a9c562e3986e5))
 
 ## [6.0.1](https://github.com/Lameco-Development/craft-blitz/compare/6.0.0...6.0.1) (2026-11-12)
