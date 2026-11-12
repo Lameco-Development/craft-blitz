@@ -10,6 +10,7 @@ use craft\elements\Entry;
 use craft\events\CancelableEvent;
 use craft\helpers\App;
 use craft\services\Plugins;
+use lameco\blitz\helpers\QueryStringExclusion;
 use lameco\blitz\models\Settings;
 use putyourlightson\blitz\Blitz;
 use putyourlightson\blitz\drivers\generators\HttpGenerator;
@@ -21,10 +22,11 @@ use putyourlightson\blitz\services\CacheRequestService;
  * Craft Blitz plugin
  *
  * @method static Plugin getInstance()
+ * @method Settings getSettings()
  */
 class Plugin extends BasePlugin
 {
-    public string $schemaVersion = '1.0.0';
+    public string $schemaVersion = '2.0.0';
     public bool $hasCpSettings = true;
 
     public function init(): void
@@ -37,87 +39,93 @@ class Plugin extends BasePlugin
     private function _registerEvents(): void
     {
         Event::on(Plugins::class, Plugins::EVENT_AFTER_LOAD_PLUGINS, function() {
-            Blitz::$plugin->settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
-            Blitz::$plugin->settings->debug = App::env('BLITZ_DEBUG') ?? false;
-            Blitz::$plugin->settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
-            Blitz::$plugin->settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-            Blitz::$plugin->settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
-            Blitz::$plugin->settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
-            Blitz::$plugin->settings->includedQueryStringParams = [];
-            Blitz::$plugin->settings->excludedQueryStringParams = [];
-            Blitz::$plugin->settings->cacheGeneratorSettings['concurrency'] = 1;
-            Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = true;
+            // Blitz::$plugin is an uninitialised typed property while Blitz is missing or disabled.
+            if (!isset(Blitz::$plugin)) {
+                return;
+            }
+
+            $settings = Blitz::$plugin->settings;
+            $settings->cachingEnabled = App::env('BLITZ_ENABLED') ?? false;
+            $settings->debug = App::env('BLITZ_DEBUG') ?? false;
+            $settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
+            $settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
+            $settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+            $settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
+            $settings->includedQueryStringParams = [];
+            $settings->excludedQueryStringParams = [];
+            $settings->cacheGeneratorSettings['concurrency'] = 1;
+            $settings->cacheStorageSettings['compressCachedValues'] = true;
+
+            $this->_reregisterBlitzDrivers($settings);
+
+            Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function(CancelableEvent $event) {
+                $this->_vetoUncacheableRequest($event);
+            });
         });
+    }
 
-        Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function (CancelableEvent $event) {
-            $request = Craft::$app->getRequest();
+    /**
+     * Blitz builds its storage and generator components from its settings during its own init(),
+     * before EVENT_AFTER_LOAD_PLUGINS, so the driver settings above only apply once the components
+     * are defined again. The settings come from the site's project config and may belong to another
+     * driver (HttpGenerator's basic-auth fields under LocalGenerator); only the target driver's own
+     * properties are passed, since Yii refuses unknown ones.
+     */
+    private function _reregisterBlitzDrivers(SettingsModel $settings): void
+    {
+        $drivers = [
+            'cacheStorage' => [$settings->cacheStorageType, $settings->cacheStorageSettings],
+            'cacheGenerator' => [$settings->cacheGeneratorType, $settings->cacheGeneratorSettings],
+        ];
 
-            if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
-                $event->isValid = false;
-                return;
-            }
+        foreach ($drivers as $id => [$class, $driverSettings]) {
+            $config = ['class' => $class];
 
-            // A craft.blitz.includeCached() fragment is fetched from its own URL, which matches no
-            // entry; the entry check below would leave every such fragment uncached and rendered
-            // by PHP on each page view, even when the page around it comes from the cache.
-            if (Blitz::$plugin->cacheRequest->getIsCachedInclude()) {
-                return;
-            }
-
-            $entry = Craft::$app->getUrlManager()->getMatchedElement();
-
-            if (!$entry instanceof Entry) {
-                $event->isValid = false;
-                return;
-            }
-
-            $isCraft5 = $this->isCraft5();
-
-            $globalQueryStringParamsMap = Plugin::getInstance()->getSettings()->globalQueryStringParams ?? '';
-            $excludedGlobalParams = array_filter(array_map('trim', explode(',', $globalQueryStringParamsMap)));
-
-            foreach ($excludedGlobalParams as $param) {
-                if ($param !== '' && $request->getQueryParam($param) !== null) {
-                    $event->isValid = false;
-                    return;
+            foreach ($driverSettings as $name => $value) {
+                if (is_string($name) && property_exists($class, $name)) {
+                    $config[$name] = $value;
                 }
             }
 
-            $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
+            Blitz::$plugin->set($id, $config);
+        }
+    }
 
-            foreach ($sectionQueryStringParamsMap as $sectionSetting) {
-                $matchHandle = $sectionSetting['section'] ?? '';
-                
-                // Expected format: "sectionHandle:entryTypeHandle"
-                $handleParts = explode(':', $matchHandle);
-                $sectionHandle = $handleParts[0] ?? '';
-                $entryTypeHandle = $handleParts[1] ?? '';
+    private function _vetoUncacheableRequest(CancelableEvent $event): void
+    {
+        $request = Craft::$app->getRequest();
 
-                if ($isCraft5) {
-                    // Craft 5: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
-                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
-                        foreach ($excludedParams as $param) {
-                            if ($param !== '' && $request->getQueryParam($param) !== null) {
-                                $event->isValid = false;
-                                return;
-                            }
-                        }
-                    }
-                } else {
-                    // Craft 4: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
-                        $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
-                        foreach ($excludedParams as $param) {
-                            if ($param !== '' && $request->getQueryParam($param) !== null) {
-                                $event->isValid = false;
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
+            $event->isValid = false;
+            return;
+        }
+
+        // A craft.blitz.includeCached() fragment is fetched from its own URL, which matches no
+        // entry; the entry check below would leave every such fragment uncached and rendered
+        // by PHP on each page view, even when the page around it comes from the cache.
+        if (Blitz::$plugin->cacheRequest->getIsCachedInclude()) {
+            return;
+        }
+
+        $entry = Craft::$app->getUrlManager()->getMatchedElement();
+
+        if (!$entry instanceof Entry) {
+            $event->isValid = false;
+            return;
+        }
+
+        $settings = $this->getSettings();
+
+        // A nested entry with its own URI has no section.
+        if (QueryStringExclusion::isExcluded(
+            $request->getQueryParams(),
+            $settings->globalQueryStringParams,
+            $settings->sectionQueryStringParams,
+            $entry->getSection()?->handle,
+            $entry->getType()->handle,
+        )) {
+            $event->isValid = false;
+        }
     }
 
     protected function createSettingsModel(): ?Model
@@ -130,12 +138,6 @@ class Plugin extends BasePlugin
         return Craft::$app->view->renderTemplate('_craft-blitz/_settings.twig', [
             'plugin' => $this,
             'settings' => $this->getSettings(),
-            'isCraft5' => $this->isCraft5(),
         ]);
-    }
-
-    private function isCraft5(): bool
-    {
-        return \version_compare(Craft::$app->getVersion(), '5.0.0', '>=');
     }
 }
