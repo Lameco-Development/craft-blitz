@@ -26,7 +26,7 @@ use putyourlightson\blitz\services\CacheRequestService;
  */
 class Plugin extends BasePlugin
 {
-    public string $schemaVersion = '1.0.0';
+    public string $schemaVersion = '2.0.0';
     public bool $hasCpSettings = true;
 
     public function init(): void
