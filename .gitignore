@@ -6,3 +6,5 @@
 composer.lock
 /node_modules
 /vendor
+.phpunit.result.cache
+/.phpunit.cache

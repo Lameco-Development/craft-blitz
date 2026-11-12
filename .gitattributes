@@ -7,6 +7,9 @@ README.md export-ignore
 SECURITY.md export-ignore
 composer.lock export-ignore
 ecs.php export-ignore
+phpunit.xml export-ignore
+release-please-config.json export-ignore
+.release-please-manifest.json export-ignore
 package-lock.json export-ignore
 package.json export-ignore
 phpstan.neon export-ignore

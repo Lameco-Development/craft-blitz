@@ -2,23 +2,8 @@
 
 {% set options = {} %}
 
-{% if isCraft5 %}
-    {# Craft 5 #}
-    {% for section in craft.app.entries.allSections() %}
-        {% for entryType in craft.app.entries.getEntryTypesBySectionId(section.id) %}
-            {% set name = section.name %}
-
-            {% if section.name != entryType.name %}
-                {% set name = name ~ ' (' ~ entryType.name ~ ')' %}
-            {% endif %}
-
-            {% set options = options|merge([{ label: name, value: section.handle ~ ':' ~ entryType.handle }]) %}
-        {% endfor %}
-    {% endfor %}
-{% else %}
-    {# Craft 4 #}
-    {% for entryType in craft.app.sections.getAllEntryTypes() %}
-        {% set section = entryType.section %}
+{% for section in craft.app.entries.allSections() %}
+    {% for entryType in section.getEntryTypes() %}
         {% set name = section.name %}
 
         {% if section.name != entryType.name %}
@@ -27,11 +12,11 @@
 
         {% set options = options|merge([{ label: name, value: section.handle ~ ':' ~ entryType.handle }]) %}
     {% endfor %}
-{% endif %}
+{% endfor %}
 
 {{ forms.textField({
     label: 'Global query string params',
-    instructions: 'Comma-separated list of query string parameters that should bypass caching on all pages.',
+    instructions: 'Comma-separated list of query string parameters that bypass the cache on every page when present, whatever their value. `filters[]` matches `filters`.',
     name: 'globalQueryStringParams',
     value: settings.globalQueryStringParams,
     code: true
