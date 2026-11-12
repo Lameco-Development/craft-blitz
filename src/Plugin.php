@@ -13,7 +13,7 @@ use craft\i18n\PhpMessageSource;
 use craft\services\Plugins;
 use lameco\blitz\helpers\EnupalTranslationChanges;
 use lameco\blitz\helpers\QueryStringExclusion;
-use lameco\blitz\helpers\TranslationSync;
+use lameco\blitz\helpers\TranslationRefresh;
 use lameco\blitz\helpers\TranslationTags;
 use lameco\blitz\i18n\TaggingPhpMessageSource;
 use lameco\blitz\models\Settings;
@@ -23,8 +23,6 @@ use putyourlightson\blitz\drivers\generators\LocalGenerator;
 use putyourlightson\blitz\models\SettingsModel;
 use putyourlightson\blitz\services\CacheRequestService;
 use Throwable;
-use yii\queue\ExecEvent;
-use yii\queue\Queue;
 
 /**
  * Craft Blitz plugin
@@ -123,59 +121,40 @@ class Plugin extends BasePlugin
     }
 
     /**
-     * Translations change no element, so Blitz would keep serving the old text. Every Enupal save,
-     * import, provider translation and console sync queues SyncTranslationsWithDb; its changes are read
-     * before it runs, while Enupal's tables still hold the previous translations, and the pages tagged
-     * with them are refreshed after it ran. In expire mode refreshing marks those pages expired, and
-     * they rebuild as visitors arrive.
+     * Translations change no element, so Blitz would keep serving the old text. In expire mode
+     * refreshing marks the pages showing a changed translation expired, and they rebuild as visitors
+     * arrive.
      */
     private function _registerTranslationRefresh(bool $pagesAreTagged): void
     {
-        /** @var array<array-key, string[]|null> $pendingTags Job ID => tags, or null to refresh everything */
-        $pendingTags = [];
+        $refresh = new TranslationRefresh(
+            function() use ($pagesAreTagged): ?array {
+                if (!$pagesAreTagged) {
+                    return null;
+                }
 
-        Event::on(Queue::class, Queue::EVENT_BEFORE_EXEC, function(ExecEvent $event) use ($pagesAreTagged, &$pendingTags) {
-            if (!is_object($event->job) || !TranslationSync::requiresCacheRefresh($event->job)) {
-                return;
-            }
-
-            $tags = null;
-
-            if ($pagesAreTagged) {
                 try {
-                    $tags = TranslationTags::forChanges(
+                    return TranslationTags::forChanges(
                         EnupalTranslationChanges::pending(),
                         Craft::$app->getI18n()->getSiteLocaleIds(),
                         'site',
                     );
                 } catch (Throwable $exception) {
                     Craft::warning('Could not read the changed translations, so the whole Blitz cache is refreshed: ' . $exception->getMessage(), __METHOD__);
+
+                    return null;
                 }
-            }
-
-            $pendingTags[$event->id] = $tags;
-        });
-
-        Event::on(Queue::class, Queue::EVENT_AFTER_EXEC, function(ExecEvent $event) use (&$pendingTags) {
-            if (!array_key_exists($event->id, $pendingTags)) {
-                return;
-            }
-
-            $tags = $pendingTags[$event->id];
-            unset($pendingTags[$event->id]);
-
-            if ($tags === null) {
-                Blitz::$plugin->refreshCache->refreshAll();
-                return;
-            }
-
-            if ($tags !== []) {
+            },
+            function(array $tags): void {
                 Blitz::$plugin->refreshCache->refreshCacheTags($tags);
                 // Blitz queues the refresh at the end of the request, which a long-running queue
                 // worker does not reach.
                 Blitz::$plugin->refreshCache->refresh();
-            }
-        });
+            },
+            fn() => Blitz::$plugin->refreshCache->refreshAll(),
+        );
+
+        $refresh->attach();
     }
 
     private function _vetoUncacheableRequest(CancelableEvent $event): void
