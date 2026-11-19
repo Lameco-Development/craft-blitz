@@ -79,16 +79,11 @@ class Plugin extends BasePlugin
             $sectionQueryStringParamsMap = Plugin::getInstance()->getSettings()->sectionQueryStringParams ?? [];
 
             foreach ($sectionQueryStringParamsMap as $sectionSetting) {
-                $matchHandle = $sectionSetting['section'] ?? '';
-                
-                // Expected format: "sectionHandle:entryTypeHandle"
-                $handleParts = explode(':', $matchHandle);
-                $sectionHandle = $handleParts[0] ?? '';
-                $entryTypeHandle = $handleParts[1] ?? '';
+                $matchHandle = (string)($sectionSetting['section'] ?? '');
 
                 if ($isCraft5) {
-                    // Craft 5: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
+                    // Craft 5: match by section ID, section handle or section:entryType handle
+                    if ($this->entryMatchesSection($entry, $matchHandle)) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
                             if ($request->getQueryParam($param)) {
@@ -98,8 +93,8 @@ class Plugin extends BasePlugin
                         }
                     }
                 } else {
-                    // Craft 4: Match by section:entryType handle
-                    if ($entry->section->handle === $sectionHandle && $entry->type->handle === $entryTypeHandle) {
+                    // Craft 4: match by section ID, section handle or section:entryType handle
+                    if ($this->entryMatchesSection($entry, $matchHandle)) {
                         $excludedParams = array_map('trim', explode(',', $sectionSetting['queryStringParams'] ?? ''));
                         foreach ($excludedParams as $param) {
                             if ($request->getQueryParam($param)) {
@@ -125,6 +120,32 @@ class Plugin extends BasePlugin
             'settings' => $this->getSettings(),
             'isCraft5' => $this->isCraft5(),
         ]);
+    }
+
+    /**
+     * Matches a sectionQueryStringParams row against the entry. Expected format is
+     * "sectionHandle:entryTypeHandle"; a bare handle matches the section alone, and a numeric value is a
+     * section ID saved by 5.0.x, which matches every entry type of that section.
+     */
+    private function entryMatchesSection(Entry $entry, string $value): bool
+    {
+        $section = $entry->section;
+
+        if ($value === '' || $section === null) {
+            return false;
+        }
+
+        if (ctype_digit($value)) {
+            return $section->id === (int)$value;
+        }
+
+        $handleParts = explode(':', $value, 2);
+
+        if (!isset($handleParts[1])) {
+            return $section->handle === $value;
+        }
+
+        return $section->handle === $handleParts[0] && $entry->type->handle === $handleParts[1];
     }
 
     private function isCraft5(): bool
