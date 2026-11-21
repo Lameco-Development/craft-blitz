@@ -80,6 +80,11 @@ class Plugin extends BasePlugin
         $settings->excludedQueryStringParams = [];
         $settings->cacheGeneratorSettings['concurrency'] = 1;
         $settings->cacheStorageSettings['compressCachedValues'] = true;
+        // Blitz's default, @webroot/cache/blitz, makes every cached page a public file that nginx serves
+        // without Craft, past the entry and query string vetoes below. The web root only matters for
+        // server rewrites, which we don't use. @root is the release folder, so the cache still starts
+        // empty after each deploy; @storage is shared between releases.
+        $settings->cacheStorageSettings['folderPath'] = '@root/blitz-cache';
 
         // Without SSI, craft.blitz.includeCached() falls back to an AJAX request, so a cached header
         // or footer reaches the browser only after JavaScript runs. Rootnet's and Valet's nginx run
@@ -179,6 +184,13 @@ class Plugin extends BasePlugin
     {
         $request = Craft::$app->getRequest();
 
+        // Blitz serves a page it cached earlier before it checks cachingEnabled, which only stops new
+        // pages from being cached. Vetoing here makes BLITZ_ENABLED=0 stop serving them too.
+        if (!Blitz::$plugin->settings->cachingEnabled) {
+            $event->isValid = false;
+            return;
+        }
+
         if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
             $event->isValid = false;
             return;
@@ -199,11 +211,12 @@ class Plugin extends BasePlugin
         }
 
         $settings = $this->getSettings();
+        $pageParam = QueryStringExclusion::pageParam(Craft::$app->getConfig()->getGeneral()->getPageTrigger());
 
         // A nested entry with its own URI has no section.
         if (QueryStringExclusion::isExcluded(
             $request->getQueryParams(),
-            $settings->globalQueryStringParams,
+            $settings->globalQueryStringParams . ',' . $pageParam,
             $settings->sectionQueryStringParams,
             $entry->getSection()?->handle,
             $entry->getType()->handle,
