@@ -31,6 +31,24 @@ final class QueryStringExclusion
     }
 
     /**
+     * The query string parameter Craft paginates with, or null when the page number is part of the path.
+     * Under query string pagination (`pageTrigger('?page')`) every page of a listing shares one URI, so
+     * without this parameter in the list `?page=2` would be served the cached first page.
+     *
+     * @param string $pageTrigger The value of GeneralConfig::getPageTrigger(), such as `?page=` or `p`
+     */
+    public static function pageParam(string $pageTrigger): ?string
+    {
+        if (!str_starts_with($pageTrigger, '?')) {
+            return null;
+        }
+
+        $param = trim($pageTrigger, '?=');
+
+        return $param !== '' ? $param : null;
+    }
+
+    /**
      * @param array<array-key, mixed> $queryParams
      * @param array<array-key, mixed> $sectionRows Rows of `section` ("sectionHandle:entryTypeHandle") and `queryStringParams`
      */

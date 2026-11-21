@@ -16,7 +16,7 @@ class ForcedSettingsTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($_SERVER['BLITZ_ENABLED'], $_SERVER['BLITZ_SSI']);
+        unset($_SERVER['BLITZ_ENABLED'], $_SERVER['BLITZ_SSI'], $_SERVER['BLITZ_REFRESH_MODE']);
     }
 
     public function testSsiIsOnWhenBlitzSsiIsUnset(): void
@@ -66,6 +66,37 @@ class ForcedSettingsTest extends TestCase
         Plugin::applyForcedSettings($settings);
 
         $this->assertFalse($settings->ssiEnabled);
+    }
+
+    /**
+     * @return array<string, array{?string, int}>
+     */
+    public static function blitzRefreshModeValues(): array
+    {
+        return [
+            'unset keeps expire' => [null, SettingsModel::REFRESH_MODE_EXPIRE],
+            'expire' => ['expire', SettingsModel::REFRESH_MODE_EXPIRE],
+            'clear' => ['clear', SettingsModel::REFRESH_MODE_CLEAR],
+            'expire-and-generate' => ['expire-and-generate', SettingsModel::REFRESH_MODE_EXPIRE_AND_GENERATE],
+            'clear-and-generate' => ['clear-and-generate', SettingsModel::REFRESH_MODE_CLEAR_AND_GENERATE],
+            'an unknown value keeps expire' => ['clear-generate', SettingsModel::REFRESH_MODE_EXPIRE],
+        ];
+    }
+
+    #[DataProvider('blitzRefreshModeValues')]
+    public function testBlitzRefreshModeDecidesTheRefreshMode(?string $value, int $expected): void
+    {
+        if ($value !== null) {
+            $_SERVER['BLITZ_REFRESH_MODE'] = $value;
+        }
+        $settings = new SettingsModel();
+        $settings->refreshMode = SettingsModel::REFRESH_MODE_CLEAR_AND_GENERATE === $expected
+            ? SettingsModel::REFRESH_MODE_CLEAR
+            : SettingsModel::REFRESH_MODE_CLEAR_AND_GENERATE;
+
+        Plugin::applyForcedSettings($settings);
+
+        $this->assertSame($expected, $settings->refreshMode);
     }
 
     public function testEsiIsOffWhateverProjectConfigSays(): void

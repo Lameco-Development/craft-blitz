@@ -74,12 +74,17 @@ class Plugin extends BasePlugin
         $settings->debug = App::env('BLITZ_DEBUG') ?? false;
         $settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
         $settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-        $settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+        $settings->refreshMode = self::refreshMode(App::env('BLITZ_REFRESH_MODE'));
         $settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
         $settings->includedQueryStringParams = [];
         $settings->excludedQueryStringParams = [];
         $settings->cacheGeneratorSettings['concurrency'] = 1;
         $settings->cacheStorageSettings['compressCachedValues'] = true;
+        // Blitz's default, @webroot/cache/blitz, makes every cached page a public file that nginx serves
+        // without Craft, past the entry and query string vetoes below. The web root only matters for
+        // server rewrites, which we don't use. @root is the release folder, so the cache still starts
+        // empty after each deploy; @storage is shared between releases.
+        $settings->cacheStorageSettings['folderPath'] = '@root/blitz-cache';
 
         // Without SSI, craft.blitz.includeCached() falls back to an AJAX request, so a cached header
         // or footer reaches the browser only after JavaScript runs. Rootnet's and Valet's nginx run
@@ -90,6 +95,31 @@ class Plugin extends BasePlugin
         // servers processes ESI tags, so ESI could only blank the include.
         $settings->ssiEnabled = $settings->cachingEnabled && (App::parseBooleanEnv('$BLITZ_SSI') ?? true);
         $settings->esiEnabled = false;
+    }
+
+    /**
+     * Expire keeps serving the old page until a visit regenerates it, so no queue job rebuilds the
+     * whole site after an edit on a shared server. A site where that leaves pages up too long, such
+     * as the page of a deleted entry, which the generator's 404 never removes, picks another Blitz
+     * mode by name. An unknown value keeps expire, so a typo never selects a mode nobody chose.
+     */
+    private static function refreshMode(mixed $value): int
+    {
+        $mode = match ($value) {
+            null, 'expire' => SettingsModel::REFRESH_MODE_EXPIRE,
+            'clear' => SettingsModel::REFRESH_MODE_CLEAR,
+            'expire-and-generate' => SettingsModel::REFRESH_MODE_EXPIRE_AND_GENERATE,
+            'clear-and-generate' => SettingsModel::REFRESH_MODE_CLEAR_AND_GENERATE,
+            default => null,
+        };
+
+        if ($mode === null) {
+            Craft::warning('Unknown BLITZ_REFRESH_MODE, so Blitz expires the cache: ' . print_r($value, true), __METHOD__);
+
+            return SettingsModel::REFRESH_MODE_EXPIRE;
+        }
+
+        return $mode;
     }
 
     /**
@@ -179,6 +209,13 @@ class Plugin extends BasePlugin
     {
         $request = Craft::$app->getRequest();
 
+        // Blitz serves a page it cached earlier before it checks cachingEnabled, which only stops new
+        // pages from being cached. Vetoing here makes BLITZ_ENABLED=0 stop serving them too.
+        if (!Blitz::$plugin->settings->cachingEnabled) {
+            $event->isValid = false;
+            return;
+        }
+
         if (!$request->getIsSiteRequest() || $request->getIsConsoleRequest()) {
             $event->isValid = false;
             return;
@@ -199,11 +236,12 @@ class Plugin extends BasePlugin
         }
 
         $settings = $this->getSettings();
+        $pageParam = QueryStringExclusion::pageParam(Craft::$app->getConfig()->getGeneral()->getPageTrigger());
 
         // A nested entry with its own URI has no section.
         if (QueryStringExclusion::isExcluded(
             $request->getQueryParams(),
-            $settings->globalQueryStringParams,
+            $settings->globalQueryStringParams . ',' . $pageParam,
             $settings->sectionQueryStringParams,
             $entry->getSection()?->handle,
             $entry->getType()->handle,

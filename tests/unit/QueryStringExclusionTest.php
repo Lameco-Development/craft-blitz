@@ -13,6 +13,24 @@ final class QueryStringExclusionTest extends TestCase
         self::assertSame(['q', 'page'], QueryStringExclusion::parseParamList(' q , ,page,'));
     }
 
+    /**
+     * @return iterable<string, array{string, ?string}>
+     */
+    public static function pageTriggerProvider(): iterable
+    {
+        // The values Craft's GeneralConfig::getPageTrigger() returns.
+        yield 'query string trigger' => ['?page=', 'page'];
+        yield 'query string trigger renamed to avoid the path param' => ['?pg=', 'pg'];
+        yield 'path trigger' => ['p', null];
+        yield 'path segment trigger' => ['page/', null];
+    }
+
+    #[DataProvider('pageTriggerProvider')]
+    public function testPageParamIsOnlyTheQueryStringPageTrigger(string $pageTrigger, ?string $expected): void
+    {
+        self::assertSame($expected, QueryStringExclusion::pageParam($pageTrigger));
+    }
+
     public function testArrayNotationIsReducedToTheKeyPhpParsesItInto(): void
     {
         // PHP parses ?filters[]=1 into the key "filters", so a list entry "filters[]" must match that key.
