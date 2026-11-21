@@ -52,7 +52,7 @@ Only pages that resolve to an entry are cached, plus the fragments of `craft.bli
 
 With `BLITZ_ENABLED=0`, Blitz neither caches nor serves cached pages. Blitz itself only stops caching new pages and keeps serving the ones it cached earlier, so a site could not be taken off the cache without clearing it.
 
-Cached pages live in `@root/blitz-cache`, inside the release but outside `web/`. In Blitz's default `@webroot/cache/blitz`, every cached page is also a public file that the web server sends without Craft or Blitz deciding anything, which is why Blitz's docs advise disallowing `/cache/` in `robots.txt`. Outside `web/`, cached pages only reach visitors through Craft. Add `/blitz-cache` to the site's `.gitignore`.
+Cached pages live in `@root/blitz-cache`, inside the release but outside `web/`. In Blitz's default `@webroot/cache/blitz`, every cached page is also a public file that the web server sends without Craft or Blitz deciding anything, which is why Blitz's docs advise disallowing `/cache/` in `robots.txt`. Outside `web/`, cached pages only reach visitors through Craft. Blitz only needs the web root when the files should be public, for server rewrites (its Folder Path setting says so); this plugin serves cached pages through Craft and uses no rewrites. Add `/blitz-cache` to the site's `.gitignore`.
 
 ## Translations
 
