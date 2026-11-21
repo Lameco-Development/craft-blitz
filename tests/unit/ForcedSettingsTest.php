@@ -9,9 +9,14 @@ use putyourlightson\blitz\models\SettingsModel;
 
 class ForcedSettingsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        $_SERVER['BLITZ_ENABLED'] = '1';
+    }
+
     protected function tearDown(): void
     {
-        unset($_SERVER['BLITZ_SSI']);
+        unset($_SERVER['BLITZ_ENABLED'], $_SERVER['BLITZ_SSI']);
     }
 
     public function testSsiIsOnWhenBlitzSsiIsUnset(): void
@@ -46,6 +51,21 @@ class ForcedSettingsTest extends TestCase
         Plugin::applyForcedSettings($settings);
 
         $this->assertSame($expected, $settings->ssiEnabled);
+    }
+
+    /**
+     * Blitz outputs SSI tags for cached includes whether or not caching is on, so with caching off a
+     * server without SSI (php craft serve, a test run) would lose the header and footer.
+     */
+    public function testSsiStaysOffWhileCachingIsOff(): void
+    {
+        $_SERVER['BLITZ_ENABLED'] = '0';
+        $_SERVER['BLITZ_SSI'] = '1';
+        $settings = new SettingsModel();
+
+        Plugin::applyForcedSettings($settings);
+
+        $this->assertFalse($settings->ssiEnabled);
     }
 
     public function testEsiIsOffWhateverProjectConfigSays(): void

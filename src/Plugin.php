@@ -84,9 +84,11 @@ class Plugin extends BasePlugin
         // Without SSI, craft.blitz.includeCached() falls back to an AJAX request, so a cached header
         // or footer reaches the browser only after JavaScript runs. Rootnet's and Valet's nginx run
         // with `ssi on`; BLITZ_SSI=0 is for a server that doesn't, where the raw SSI comment would
-        // otherwise replace the include. Blitz checks SSI before ESI, and nothing in front of our
+        // otherwise replace the include. Blitz outputs SSI tags whether or not caching is on, so SSI
+        // follows caching: with caching off, the AJAX fallback works on any server, including
+        // `php craft serve` and test runs. Blitz checks SSI before ESI, and nothing in front of our
         // servers processes ESI tags, so ESI could only blank the include.
-        $settings->ssiEnabled = App::parseBooleanEnv('$BLITZ_SSI') ?? true;
+        $settings->ssiEnabled = $settings->cachingEnabled && (App::parseBooleanEnv('$BLITZ_SSI') ?? true);
         $settings->esiEnabled = false;
     }
 

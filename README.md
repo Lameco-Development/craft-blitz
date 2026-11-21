@@ -31,7 +31,7 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 | Refresh mode | expire the cache |
 | Query string caching | cache URLs with query strings as the same page |
 | Included / excluded query string params | none |
-| SSI | on, unless `BLITZ_SSI=0` |
+| SSI | on while caching is on, unless `BLITZ_SSI=0` |
 | ESI | off |
 
 `BLITZ_GENERATOR=LOCAL` is for local development only, where Blitz's HTTP generator can't reach Valet's `.test` domains. Servers use `HTTP`: the local generator can't rebuild `craft.blitz.includeCached()` fragments, so an expired header or footer stays up.
@@ -41,6 +41,8 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 With SSI on, nginx puts each `craft.blitz.includeCached()` fragment into the page before it leaves the server, so a cached header or footer is part of the HTML. Without SSI, Blitz falls back to an AJAX request: the page arrives with an empty placeholder and JavaScript fills it in after `DOMContentLoaded`.
 
 The Rootnet servers and Valet's stock nginx run with `ssi on`; the Blitz settings page in the CP shows "SSI was detected on the web server" when the server processes SSI. On a server that doesn't, set `BLITZ_SSI=0`: the raw `<!--#include virtual="…" -->` comment would otherwise reach the browser and the include would be missing.
+
+Blitz outputs SSI tags for cached includes whether or not caching is on, so SSI is only turned on together with `BLITZ_ENABLED`. With caching off, the AJAX fallback keeps the header and footer working on any server, including `php craft serve` and test runs.
 
 ESI stays off: Blitz checks SSI first, and nothing in front of our servers processes ESI tags.
 
