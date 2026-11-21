@@ -31,8 +31,20 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 | Refresh mode | expire the cache |
 | Query string caching | cache URLs with query strings as the same page |
 | Included / excluded query string params | none |
+| SSI | on, unless `BLITZ_SSI=0` |
+| ESI | off |
 
 `BLITZ_GENERATOR=LOCAL` is for local development only, where Blitz's HTTP generator can't reach Valet's `.test` domains. Servers use `HTTP`: the local generator can't rebuild `craft.blitz.includeCached()` fragments, so an expired header or footer stays up.
+
+## Cached includes and SSI
+
+With SSI on, nginx puts each `craft.blitz.includeCached()` fragment into the page before it leaves the server, so a cached header or footer is part of the HTML. Without SSI, Blitz falls back to an AJAX request: the page arrives with an empty placeholder and JavaScript fills it in after `DOMContentLoaded`.
+
+The Rootnet servers and Valet's stock nginx run with `ssi on`; the Blitz settings page in the CP shows "SSI was detected on the web server" when the server processes SSI. On a server that doesn't, set `BLITZ_SSI=0`: the raw `<!--#include virtual="…" -->` comment would otherwise reach the browser and the include would be missing.
+
+ESI stays off: Blitz checks SSI first, and nothing in front of our servers processes ESI tags.
+
+Blitz fires `afterBlitzInjectAll` only on a page that still has an AJAX include, such as `craft.blitz.includeDynamic()`. Front-end code that waits for that event keeps working as long as the layout renders at least one dynamic include on every page; the starter kit's admin bar does.
 
 Only pages that resolve to an entry are cached, plus the fragments of `craft.blitz.includeCached()`.
 
@@ -60,4 +72,5 @@ Write array parameters with or without brackets: `filters[]` matches `?filters[]
 ## Upgrading
 
 - **From 1.x:** require `^6.0`, run `php craft up`, then clear the Blitz cache, since pages cached under the old rules stay in the cache otherwise.
+- **From 6.1.x or earlier:** SSI is now on. Clear the Blitz cache once, since pages cached before it keep their AJAX placeholders until they are regenerated.
 - **From 5.0.x:** the same. The migration converts the 5.0.x rows, which stored a section ID, into one row per entry type of that section, and logs a warning for rows whose section no longer exists. The listed parameters now bypass the cache instead of being cached as separate pages. Run the migration in the environment where project config is edited and commit the YAML; other environments pick it up when project config is applied.
