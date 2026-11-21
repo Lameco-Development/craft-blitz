@@ -74,7 +74,7 @@ class Plugin extends BasePlugin
         $settings->debug = App::env('BLITZ_DEBUG') ?? false;
         $settings->includedUriPatterns = [['siteId' => '', 'uriPattern' => '.*']];
         $settings->cacheGeneratorType = 'LOCAL' === App::env('BLITZ_GENERATOR') ? LocalGenerator::class : HttpGenerator::class;
-        $settings->refreshMode = SettingsModel::REFRESH_MODE_EXPIRE;
+        $settings->refreshMode = self::refreshMode(App::env('BLITZ_REFRESH_MODE'));
         $settings->queryStringCaching = SettingsModel::QUERY_STRINGS_CACHE_URLS_AS_SAME_PAGE;
         $settings->includedQueryStringParams = [];
         $settings->excludedQueryStringParams = [];
@@ -95,6 +95,31 @@ class Plugin extends BasePlugin
         // servers processes ESI tags, so ESI could only blank the include.
         $settings->ssiEnabled = $settings->cachingEnabled && (App::parseBooleanEnv('$BLITZ_SSI') ?? true);
         $settings->esiEnabled = false;
+    }
+
+    /**
+     * Expire keeps serving the old page until a visit regenerates it, so no queue job rebuilds the
+     * whole site after an edit on a shared server. A site where that leaves pages up too long, such
+     * as the page of a deleted entry, which the generator's 404 never removes, picks another Blitz
+     * mode by name. An unknown value keeps expire, so a typo never selects a mode nobody chose.
+     */
+    private static function refreshMode(mixed $value): int
+    {
+        $mode = match ($value) {
+            null, 'expire' => SettingsModel::REFRESH_MODE_EXPIRE,
+            'clear' => SettingsModel::REFRESH_MODE_CLEAR,
+            'expire-and-generate' => SettingsModel::REFRESH_MODE_EXPIRE_AND_GENERATE,
+            'clear-and-generate' => SettingsModel::REFRESH_MODE_CLEAR_AND_GENERATE,
+            default => null,
+        };
+
+        if ($mode === null) {
+            Craft::warning('Unknown BLITZ_REFRESH_MODE, so Blitz expires the cache: ' . print_r($value, true), __METHOD__);
+
+            return SettingsModel::REFRESH_MODE_EXPIRE;
+        }
+
+        return $mode;
     }
 
     /**

@@ -28,13 +28,28 @@ The plugin overrides these Blitz settings at runtime, whatever the Blitz CP sett
 | Included URI patterns | every URI, every site |
 | Generator | `LocalGenerator` when `BLITZ_GENERATOR=LOCAL`, otherwise `HttpGenerator`, with concurrency 1 |
 | Storage | compressed cached values in `@root/blitz-cache`, outside the web root |
-| Refresh mode | expire the cache |
+| Refresh mode | expire the cache, unless `BLITZ_REFRESH_MODE` says otherwise |
 | Query string caching | cache URLs with query strings as the same page |
 | Included / excluded query string params | none |
 | SSI | on while caching is on, unless `BLITZ_SSI=0` |
 | ESI | off |
 
 `BLITZ_GENERATOR=LOCAL` is for local development only, where Blitz's HTTP generator can't reach Valet's `.test` domains. Servers use `HTTP`, which renders each page through the web server the way a visitor's request does.
+
+## Refresh mode
+
+By default an edit expires the cached pages that show it: visitors keep getting the old page, and a visit queues its regeneration. No queue job rebuilds the whole site after an edit, which keeps the load on a shared server low. The catch: the page of a deleted or unpublished entry stays up, since regenerating it returns a 404 and Blitz leaves the file alone.
+
+`BLITZ_REFRESH_MODE` picks another of Blitz's [refresh modes](https://putyourlightson.com/plugins/blitz#refresh-mode) for a site that needs it:
+
+| `BLITZ_REFRESH_MODE` | Blitz refresh mode |
+|---|---|
+| `expire` (default) | Expire the cache, regenerate manually or organically |
+| `clear` | Clear the cache, regenerate manually or organically |
+| `expire-and-generate` | Expire the cache and regenerate in a queue job |
+| `clear-and-generate` | Clear the cache and regenerate in a queue job |
+
+`clear` removes a changed or deleted page at once; the next visitor waits for a fresh render instead of getting the old page. The `-and-generate` modes regenerate every affected page in a queue job, after a global save the whole site. An unknown value keeps `expire` and logs a warning.
 
 ## Cached includes and SSI
 
@@ -62,7 +77,7 @@ With [Enupal Translate](https://plugins.craftcms.com/enupal-translate) installed
 - Enupal writes each save, import or provider translation to the translation file and queues its "Syncing translations with DB" job. Just before that job runs, the plugin compares Enupal's database copy with the files, and afterwards expires the pages tagged with a changed message. A change in `translations/nl/` also covers the regions that fall back to it, such as `nl-NL`.
 - If Enupal's database copy is behind the files, for example when translations were changed in git, the next sync treats those messages as changed too.
 
-This needs a queue runner, and only happens while Blitz caching is enabled (`BLITZ_ENABLED`). As with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text. A site that configures its own message source for the `site` category isn't tagged; there, a sync expires the whole cache. Edits to plugin translations through Enupal are not tracked.
+This needs a queue runner, and only happens while Blitz caching is enabled (`BLITZ_ENABLED`). In the default expire mode, as with any expired page, the first visit still gets the old text and queues the regeneration; the visits after that get the new text. In a clear mode, the next visit gets the new text. A site that configures its own message source for the `site` category isn't tagged; there, a sync expires the whole cache. Edits to plugin translations through Enupal are not tracked.
 
 Pages cached before 6.1.0 carry no translation tags, so clear the Blitz cache once after updating.
 
