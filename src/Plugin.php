@@ -14,6 +14,7 @@ use putyourlightson\blitz\Blitz;
 use putyourlightson\blitz\drivers\generators\HttpGenerator;
 use putyourlightson\blitz\drivers\generators\LocalGenerator;
 use putyourlightson\blitz\models\SettingsModel;
+use putyourlightson\blitz\services\CacheRequestService;
 
 /**
  * Craft Blitz plugin
@@ -56,7 +57,13 @@ class Plugin extends BasePlugin
             Blitz::$plugin->settings->cacheGeneratorSettings['concurrency'] = 1;
             Blitz::$plugin->settings->cacheStorageSettings['compressCachedValues'] = true;
 
-            $this->blitzService->setupEntryQueryStringParams();
+            // Blitz asks whether a request is cacheable from Application::EVENT_INIT, once Craft is initialised and
+            // before it builds the cache URI from includedQueryStringParams. Matching the entry here, while plugins
+            // are still loading, logged "getMatchedElement() was called before the application was fully
+            // initialized" with a stack trace on every request.
+            Event::on(CacheRequestService::class, CacheRequestService::EVENT_IS_CACHEABLE_REQUEST, function() {
+                $this->blitzService->setupEntryQueryStringParams();
+            });
         });
     }
 
